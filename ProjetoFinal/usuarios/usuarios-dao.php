@@ -4,6 +4,8 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
+$config = require('../config.php');
+
 function connection(): PDO {
     try {
         $conn = new PDO("mysql:host=localhost;dbname=projeto_final", "root", "season");
@@ -14,6 +16,35 @@ function connection(): PDO {
     }
 
     return $conn;
+}
+
+/*
+ * @return Object $usuario
+ */
+
+function login(string $email, string $senha): array {
+    $senha = md5($config['APP'].$senha);
+    
+    $conn = connection();
+
+    $sql = "SELECT usuarios.id, usuarios.nome, grupos.slug as grupo FROM usuarios "
+            . "INNER JOIN grupos "
+            . "ON usuarios.grupo_id = grupos.id "
+            . "WHERE email = ? AND senha = ?";
+
+    $rs = $conn->prepare($sql);
+    $rs->bindParam(1, $email);
+    $rs->bindParam(2, $senha);
+
+    if ($rs->execute() /* && ($rs->fetch(PDO::FETCH_OBJ) != false) */) {
+        $usuario = $rs->fetch(PDO::FETCH_OBJ);
+        $usuario = get_object_vars($usuario);
+
+        return $usuario;
+    } else {
+        var_dump($rs->errorInfo());
+        exit();
+    }
 }
 
 function all(): array {
@@ -43,8 +74,10 @@ function grupos(): array {
 }
 
 function store(array $usuario): bool {
+$usuario['senha'] = md5($config['APP'].$usuario['senha']);
+
     $conn = connection();
-    
+
     $stmt = $conn->prepare("INSERT INTO usuarios (nome, email, senha, descricao, grupo_id) "
             . "VALUES(?,?,?,?,?)");
     $stmt->bindParam(1, $usuario['nome']);
